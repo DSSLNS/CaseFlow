@@ -1,0 +1,10 @@
+Title,Suite,Preconditions,Description,Steps,Expected Result,Priority,Status,Type,Severity,Assignee,Tags,Estimate,Automation Status,Automation Reference
+"Refund, partial ""amount"" — €10 IMPCSV-1","Imported CSV > Billing","Order exists
+Payment captured","Verifies partial refunds, including quotes & commas.","1. Open the order
+2. Click ""Refund""
+3. Enter 10.00 and confirm","1. Order details shown
+2. Refund dialog opens
+3. Refund of €10 is recorded",High,Ready,Regression,Major,alex.chen@example.com,"billing; refunds",1h 30m,Automated,https://ci.example.com/tests/123
+"Überprüfung der Umlaute ✓ IMPCSV-2","Imported CSV > Billing","","Unicode handling","Enter the name Jürgen Groß","Name is stored and displayed exactly",low,draft,API,Minor,Maria Garcia,i18n,45,to automate,
+"<script>alert(""x"")</script> is escaped IMPCSV-3","Imported CSV","","","","",Critical,Deprecated,Security,,,,2h,no,
+"Defaults applied IMPCSV-4","","","","Open the search page","Search box is focused",,,,,,,,,

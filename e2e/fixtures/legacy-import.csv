@@ -1,0 +1,11 @@
+Legacy ID,Test Case Name,Module,Pre-requisites,Test Steps,Expected Outcome,Prio,Automated,Labels,Reviewer Notes
+TC-001,Legacy login works LEG-1,Legacy > Auth,User exists,"1) Open app
+2) Log in","1) App opens
+2) Dashboard shown",High,Yes,"legacy,auth",ok
+,,,,,,,,,
+TC-002,Legacy mismatched steps LEG-2,Legacy > Auth,,"1. Step a
+2. Step b
+3. Step c",Everything works,Medium,No,,
+
+TC-003,Legacy extra column LEG-3,Legacy,,Do it,Done,Low,No,,,EXTRA VALUE
+TC-004,Legacy search LEG-4,Legacy > Search,,Search for shoes,Results shown,P1,No,,

@@ -1,0 +1,367 @@
+// Test Case Management System schema.
+//
+// SQLite is used for local development. Enum-like columns are stored as strings
+// and validated in the application layer (src/lib/constants.ts + Zod), which keeps
+// the schema portable: switching `provider` to "postgresql" requires no model changes.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String   @default("")
+  /// "admin" | "member"
+  role         String   @default("member")
+  /// Display-only job function selected at signup
+  jobTitle     String   @default("")
+  createdAt    DateTime @default(now())
+
+  assignedCases  TestCase[]      @relation("CaseAssignee")
+  createdCases   TestCase[]      @relation("CaseCreatedBy")
+  updatedCases   TestCase[]      @relation("CaseUpdatedBy")
+  ownedRuns      TestRun[]       @relation("RunOwner")
+  createdRuns    TestRun[]       @relation("RunCreatedBy")
+  executions     TestExecution[]
+  runCases       TestRunCase[]
+  imports        ImportBatch[]
+  attachments    Attachment[]
+  evidence       Evidence[]
+  sessions            Session[]
+  projectMembers      ProjectMember[]
+  passwordResetTokens PasswordResetToken[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  /// Incremented on each failed submission; token is voided after MAX_RESET_ATTEMPTS
+  attempts  Int       @default(0)
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  /// "owner" | "admin" | "member" | "viewer"
+  role      String   @default("member")
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+  @@index([projectId])
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  /// Short uppercase code used as the test case ID prefix, e.g. "WEB" -> WEB-12
+  code        String   @unique
+  description String   @default("")
+  /// Newline-separated list of allowed severity values (configurable in Settings)
+  severities  String   @default("Blocker\nCritical\nMajor\nNormal\nMinor\nTrivial")
+  /// Monotonic counter for test case numbers; never reused after deletion
+  caseCounter Int      @default(0)
+  isSample    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  suites    Suite[]
+  testCases TestCase[]
+  tags      Tag[]
+  runs      TestRun[]
+  imports   ImportBatch[]
+  members   ProjectMember[]
+}
+
+model Suite {
+  id          String   @id @default(cuid())
+  projectId   String
+  parentId    String?
+  name        String
+  description String   @default("")
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent    Suite?     @relation("SuiteTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children  Suite[]    @relation("SuiteTree")
+  testCases TestCase[]
+
+  // NULL parentId values are distinct in SQL unique indexes, so root-level
+  // uniqueness is additionally enforced in src/server/services/suites.ts.
+  @@unique([projectId, parentId, name])
+  @@index([projectId])
+  @@index([parentId])
+}
+
+model TestCase {
+  id               String   @id @default(cuid())
+  projectId        String
+  suiteId          String
+  number           Int
+  title            String
+  description      String   @default("")
+  preconditions    String   @default("")
+  priority         String   @default("Medium")
+  status           String   @default("Draft")
+  type             String   @default("Functional")
+  severity         String?
+  assigneeId       String?
+  estimateMinutes  Int?
+  automationStatus String   @default("Not Automated")
+  automationRef    String   @default("")
+  archived         Boolean  @default(false)
+  createdById      String?
+  updatedById      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  suite       Suite         @relation(fields: [suiteId], references: [id], onDelete: Restrict)
+  assignee    User?         @relation("CaseAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdBy   User?         @relation("CaseCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?         @relation("CaseUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  steps       TestStep[]
+  tags        TestCaseTag[]
+  attachments Attachment[]
+  runCases    TestRunCase[]
+
+  @@unique([projectId, number])
+  @@index([projectId, suiteId])
+  @@index([projectId, title])
+  @@index([projectId, status])
+  @@index([projectId, priority])
+  @@index([projectId, type])
+  @@index([projectId, assigneeId])
+  @@index([projectId, updatedAt])
+}
+
+model TestStep {
+  id             String @id @default(cuid())
+  testCaseId     String
+  position       Int
+  action         String
+  expectedResult String @default("")
+
+  testCase TestCase @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+
+  @@index([testCaseId, position])
+}
+
+model Tag {
+  id        String @id @default(cuid())
+  projectId String
+  name      String
+
+  project Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  cases   TestCaseTag[]
+
+  @@unique([projectId, name])
+}
+
+model TestCaseTag {
+  testCaseId String
+  tagId      String
+
+  testCase TestCase @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  tag      Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([testCaseId, tagId])
+  @@index([tagId])
+}
+
+/// Files attached to a test case. Bytes are stored on local disk under
+/// storage/attachments/<id>; this row holds the metadata.
+model Attachment {
+  id           String   @id @default(cuid())
+  testCaseId   String
+  filename     String
+  mimeType     String
+  size         Int
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  testCase   TestCase @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  uploadedBy User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([testCaseId])
+}
+
+model TestRun {
+  id          String    @id @default(cuid())
+  projectId   String
+  title       String
+  /// Run notes
+  description String    @default("")
+  /// Regression metadata: where and what was tested
+  environment   String    @default("")
+  buildVersion  String    @default("")
+  releaseRef    String    @default("")
+  executionDate DateTime?
+  /// Names of the suites the run was created from (display only)
+  sourceSuites  String    @default("")
+  status      String    @default("Active") // Active | Completed
+  ownerId     String?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  project   Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  owner     User?         @relation("RunOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  createdBy User?         @relation("RunCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  cases     TestRunCase[]
+
+  @@index([projectId, createdAt])
+}
+
+/// A test case included in a run. Case content is snapshotted at run creation so
+/// later edits (or deletion) of the case never rewrite the history of a past run.
+model TestRunCase {
+  id                 String    @id @default(cuid())
+  runId              String
+  testCaseId         String?
+  position           Int
+  caseKey            String
+  title              String
+  suiteName          String
+  priority           String
+  preconditions      String    @default("")
+  /// JSON array of { action, expectedResult }
+  stepsSnapshot      String    @default("[]")
+  /// Current result = the latest execution; kept here for fast filtering and counts.
+  status             String    @default("Not Run") // Pass | Fail | Blocked | Not Run
+  comment            String    @default("")
+  bugRef             String    @default("")
+  executedById       String?
+  executedAt         DateTime?
+
+  run        TestRun         @relation(fields: [runId], references: [id], onDelete: Cascade)
+  testCase   TestCase?       @relation(fields: [testCaseId], references: [id], onDelete: SetNull)
+  executedBy User?           @relation(fields: [executedById], references: [id], onDelete: SetNull)
+  executions TestExecution[]
+
+  @@unique([runId, testCaseId])
+  @@index([runId, position])
+  @@index([testCaseId])
+}
+
+/// Append-only log of every result recorded against a run case. Recording a
+/// result again creates a new execution; earlier executions and their evidence
+/// are never modified.
+model TestExecution {
+  id           String   @id @default(cuid())
+  runCaseId    String
+  status       String
+  comment      String   @default("")
+  bugRef       String   @default("")
+  executedById String?
+  createdAt    DateTime @default(now())
+
+  runCase    TestRunCase @relation(fields: [runCaseId], references: [id], onDelete: Cascade)
+  executedBy User?       @relation(fields: [executedById], references: [id], onDelete: SetNull)
+  evidence   Evidence[]
+
+  @@index([runCaseId, createdAt])
+}
+
+/// Evidence attached to one execution (screenshot, recording, log, link...).
+/// provider = "url" for manually entered links. The external* columns are for
+/// storage integrations (e.g. provider = "google_drive" with the Drive file ID);
+/// no integration is implemented yet.
+model Evidence {
+  id             String   @id @default(cuid())
+  executionId    String
+  kind           String   @default("link") // screenshot | recording | log | link
+  label          String   @default("")
+  url            String
+  provider       String   @default("url")
+  externalFileId String?
+  externalFolder String?
+  createdById    String?
+  createdAt      DateTime @default(now())
+
+  execution TestExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  createdBy User?         @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([executionId])
+}
+
+model ImportBatch {
+  id                String   @id @default(cuid())
+  projectId         String
+  /// Client-generated key; a second submission with the same key returns the
+  /// original result instead of importing again.
+  idempotencyKey    String   @unique
+  filename          String
+  fileSize          Int
+  fileHash          String
+  status            String   // Completed | Failed
+  duplicateStrategy String
+  /// JSON: { [sourceColumnIndex]: targetField }
+  mapping           String
+  totalRows         Int
+  createdCount      Int      @default(0)
+  updatedCount      Int      @default(0)
+  skippedCount      Int      @default(0)
+  failedCount       Int      @default(0)
+  errorMessage      String   @default("")
+  createdById       String?
+  createdAt         DateTime @default(now())
+
+  project   Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy User?             @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  rows      ImportRowResult[]
+
+  @@index([projectId, createdAt])
+  @@index([projectId, fileHash])
+}
+
+model ImportRowResult {
+  id         String  @id @default(cuid())
+  batchId    String
+  rowNumber  Int
+  outcome    String  // created | updated | skipped | failed
+  title      String  @default("")
+  testCaseId String?
+  caseKey    String  @default("")
+  message    String  @default("")
+
+  batch ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId, rowNumber])
+}

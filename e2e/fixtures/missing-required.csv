@@ -1,0 +1,7 @@
+Title,Suite,Priority,Assignee,Estimate
+,Search,High,,
+Valid row MISS-2,Search,Medium,,
+Bad priority MISS-3,Search,Urgent,,
+Unknown user MISS-4,Search,Low,nobody@example.com,
+Bad estimate MISS-5,Search,Low,,soon
+Unknown suite MISS-6,Does Not Exist,Low,,

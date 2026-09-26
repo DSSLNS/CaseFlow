@@ -1,0 +1,4 @@
+Test Case ID,Module,Scenario Type,Scenario,Test Case Description,Pre-condition,Testing Steps,Expected Result,Priority,Cross Verification,Status,Bug ID,Comments,Screen Record Drive link (Desktop),Screen Record Drive link (Mobile)
+TC_Module_01,Module Name,Positive,Verify that [feature] works correctly,Verifies that [feature] behaves as expected under normal conditions.,The application is loaded and [precondition is met].,"1. Navigate to the feature.
+2. Perform the action.
+3. Observe the result.",The feature should work correctly and display the expected output.,High,Cross-verify with STG.,Pass,,,,
