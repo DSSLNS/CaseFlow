@@ -77,7 +77,7 @@ export async function authenticate(page: Page): Promise<void> {
 export async function loginAs(page: Page, email: string, password = "Password1"): Promise<void> {
   await page.goto("/login");
   await page.getByRole("textbox", { name: "Email" }).fill(email);
-  await page.getByLabel("Password").fill(password);
+  await page.getByRole("textbox", { name: "Password" }).fill(password);
   await page.getByRole("button", { name: "Log in" }).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/login"), { timeout: 15_000 });
 }

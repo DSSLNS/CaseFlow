@@ -113,8 +113,8 @@ test.describe("Password reset flow", () => {
     });
 
     await page.goto(`/reset-password?token=${token}`);
-    await page.getByLabel("New password").fill("Newpass1");
-    await page.getByLabel("Confirm new password").fill("Different1");
+    await page.getByRole("textbox", { name: "New password", exact: true }).fill("Newpass1");
+    await page.getByRole("textbox", { name: "Confirm new password", exact: true }).fill("Different1");
     await page.getByRole("button", { name: "Set new password" }).click();
 
     await expect(page.getByText("Passwords do not match")).toBeVisible();
@@ -130,8 +130,8 @@ test.describe("Password reset flow", () => {
     });
 
     await page.goto(`/reset-password?token=${token}`);
-    await page.getByLabel("New password").fill("short");
-    await page.getByLabel("Confirm new password").fill("short");
+    await page.getByRole("textbox", { name: "New password", exact: true }).fill("short");
+    await page.getByRole("textbox", { name: "Confirm new password", exact: true }).fill("short");
     await page.getByRole("button", { name: "Set new password" }).click();
 
     await expect(page.getByText(/8 characters/i)).toBeVisible();
@@ -148,8 +148,8 @@ test.describe("Password reset flow", () => {
 
     // 1. Navigate to the reset page and submit a new password
     await page.goto(`/reset-password?token=${token}`);
-    await page.getByLabel("New password").fill("NewPassword2");
-    await page.getByLabel("Confirm new password").fill("NewPassword2");
+    await page.getByRole("textbox", { name: "New password", exact: true }).fill("NewPassword2");
+    await page.getByRole("textbox", { name: "Confirm new password", exact: true }).fill("NewPassword2");
     await page.getByRole("button", { name: "Set new password" }).click();
 
     // 2. Success state
